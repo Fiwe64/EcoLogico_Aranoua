@@ -18,7 +18,7 @@ export function SearchBar({ value, onChange, placeholder = 'Pesquisar produtos..
         <TextInput
           style={styles.input}
           value={value}
-          onChangeText={onChange} // No RN é onChangeText, não onChange
+          onChangeText={onChange} 
           placeholder={placeholder}
           placeholderTextColor={colors.textTertiary}
         />
@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5', // Cinza claro
+    backgroundColor: colors.textTertiary, // Cinza claro
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,

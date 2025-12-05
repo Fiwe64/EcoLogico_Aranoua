@@ -4,7 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 // Importar suas telas (que vamos criar)
-import { LocationPermissionScreen } from '../screens/LocationPermissionScreen';
+import { LocationPermissionScreen } from '../screens/LocationPermissionScreen'
 import { LoginScreen } from '../screens/LoginScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
 import { HomeScreen } from '../screens/HomeScreen';

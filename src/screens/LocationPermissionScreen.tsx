@@ -26,7 +26,7 @@ export function LocationPermissionScreen() {
           <Feather name="map-pin" size={64} color="white" />
         </View>
 
-        <Text style={styles.title}>Bem-vindo ao GreenMarket!</Text>
+        <Text style={styles.title}>Bem-vindo ao EcoLogico!</Text>
         
         <Text style={styles.description}>
           Permita o acesso à sua localização para encontrar produtores locais próximos a você.
