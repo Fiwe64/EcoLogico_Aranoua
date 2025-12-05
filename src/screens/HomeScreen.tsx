@@ -10,6 +10,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/AppNavigation';
+import {useCart} from "../contexts/CartContext";
 
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
@@ -19,6 +20,10 @@ export function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [category, setCategory] = useState<any>('todos');
   const [search, setSearch] = useState('');
+
+  // Variaveis relacionadas ap carrinho
+  const { openCart, items } = useCart();
+  const cartItemsCount = items.reduce((sum, item) => sum + item.quantity, 0);
   
 
   const filteredProducts = mockProducts.filter(p => {
@@ -40,9 +45,9 @@ export function HomeScreen() {
 
       <Header 
         userName="Maria Silva" 
-        cartItemsCount={2} 
-        onCartClick={() => {}} 
-        onProfileClick={() => {}} 
+        cartItemsCount={cartItemsCount}
+        onCartClick={openCart}
+        onProfileClick={() => navigation.navigate('ProfileScreen')}
         onLogout={handleLogout}
       />
 
@@ -60,7 +65,7 @@ export function HomeScreen() {
             quantity={0} 
             onAddToCart={() => {}}
             onRemoveFromCart={() => {}}
-            onProductClick={() => {}}
+            onProductClick={() => navigation.navigate('ProductDetail', { productId: item.id })}
           />
         )}
         contentContainerStyle={styles.listContent}

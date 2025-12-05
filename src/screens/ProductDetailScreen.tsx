@@ -4,15 +4,35 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { colors } from '../theme/colors';
 import { Product } from '../types';
+import {mockProducts} from "../data/mockProducts";
+import {useCart} from "../contexts/CartContext";
 
 export function ProductDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  
-  // Pegamos o produto passado via navegação. Se não tiver (teste), usamos undefined
-  const { product } = (route.params as { product: Product }) || {};
 
-  if (!product) return null; // Ou um loading
+  const { addToCart, openCart } = useCart();
+
+  // Pegamos o produto passado via navegação. Se não tiver (teste), usamos undefined
+  const { productId } = (route.params as { productId: string }) || {};
+  const product = mockProducts.find(item => item.id === productId);
+
+    // Se não encontrar o produto (ID inválido), mostramos uma mensagem em vez de tela branca
+  if (!product) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <Text>Produto não encontrado.</Text>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 20 }}>
+                    <Text style={{ color: colors.primary }}>Voltar</Text>
+                </TouchableOpacity>
+            </View>
+        );
+  }
+
+    const handleAddToCart = () => {
+        addToCart(product); // Adiciona o produto ao estado global
+        openCart(); // Opcional: Abre o modal imediatamente para feedback visual
+    };
 
   return (
     <View style={styles.container}>
@@ -63,8 +83,11 @@ export function ProductDetailScreen() {
           <Feather name="message-circle" size={20} color={colors.textPrimary} />
           <Text style={{marginLeft: 8, fontWeight: 'bold'}}>Conversar</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.cartButton}>
+
+          <TouchableOpacity
+              style={styles.cartButton}
+              onPress={handleAddToCart}
+          >
           <Feather name="shopping-cart" size={20} color="white" />
           <Text style={{color: 'white', marginLeft: 8, fontWeight: 'bold'}}>Adicionar</Text>
         </TouchableOpacity>
