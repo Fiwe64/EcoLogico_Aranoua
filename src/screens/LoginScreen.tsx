@@ -23,6 +23,13 @@ export function LoginScreen() {
 
   return (
     <View style={styles.container}>
+        <View style={styles.header}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                <Feather name="arrow-left" size={24} color="white" />
+                <Text style={{color: 'white', marginLeft: 8}}>Voltar</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Criar Conta</Text>
+        </View>
       <View style={styles.header}>
         <View style={styles.iconCircle}>
           <Feather name="user" size={32} color="white" />
@@ -84,6 +91,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     alignItems: 'center',
   },
+  backButton: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   iconCircle: {
     width: 64, height: 64,
     backgroundColor: 'rgba(255,255,255,0.2)',
