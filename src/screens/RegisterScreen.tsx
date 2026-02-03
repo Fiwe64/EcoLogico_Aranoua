@@ -23,11 +23,11 @@ export function RegisterScreen() {
         try {
             // 1. Inserir na tabela padronizada 'usuarios'
             const { data: userCreated, error: userError } = await supabase
-                .from('usuarios') // <--- NOME CORRIGIDO
+                .from('usuarios')
                 .insert({
                     nome: fullName,
                     email: email.trim(),
-                    senha: password, // Lembre-se: em produção, use hash
+                    senha: password,
                     tipo_usuario: userType
                 })
                 .select()
@@ -39,10 +39,10 @@ export function RegisterScreen() {
             // 2. Se for produtor, cria o vínculo na tabela 'produtores'
             if (userType === 'produtor') {
                 const { error: producerError } = await supabase
-                    .from('produtores') // <--- NOME CORRIGIDO
+                    .from('produtores')
                     .insert({
-                        usuario_id: userCreated.id, // ID numérico vindo da tabela usuarios
-                        nome_produtor: fullName // <--- COLUNA CORRIGIDA (era nome_produtor)
+                        usuario_id: userCreated.id, // ID vindo da tabela usuarios
+                        nome_produtor: fullName
                         // Outros campos como cnpj/endereço ficam null por enquanto
                     });
 

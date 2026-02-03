@@ -1,356 +1,257 @@
-import React from 'react';
-// Importamos os componentes nativos essenciais do React Native
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image } from 'react-native';
-// Importamos os ícones da versão correta (native)
-import { ArrowLeft, Edit, MapPin, Phone, Mail, Store, User as UserIcon } from 'lucide-react-native';
-import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { colors } from '../theme/colors';
+import { supabase } from '../lib/supabase';
 
-// Importa suas definições de tipo
-import { User } from '../types';
-import { RootStackParamList } from "../navigation/AppNavigation";
-// NOTA: Se o seu ImageWithFallback usar <img> (HTML), ele vai quebrar.
-// Por segurança, usarei o componente Image padrão do React Native neste exemplo.
-
-// Definimos uma paleta de cores local para substituir as variáveis CSS (var(--color...))
-const COLORS = {
-    primary: '#0066CC', // Exemplo de cor primária
-    primaryLight: '#E6F0FF',
-    background: '#F5F5F5',
-    textPrimary: '#333333',
-    textSecondary: '#666666',
-    textTertiary: '#999999',
-    white: '#FFFFFF',
+// Tipagens para ajudar no desenvolvimento
+type UserProfile = {
+    id: number;
+    nome: string;
+    email: string;
+    tipo_usuario: 'consumidor' | 'produtor';
+    telefone?: string;
+    endereco_padrao?: string;
 };
 
-const MOCK_USER: User = {
-    id: '1',
-    name: 'Maria Silva',
-    email: 'maria@silva.com',
-    type: 'cliente',
-    photo: 'https://imgs.search.brave.com/GV0xST9gNWgtSC-bSBhMoUBWz-0VX-g1WCekYN6z6aA/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9wbTEu/YW1pbm9hcHBzLmNv/bS82NzgzL2Q5ZWU1/ZDJkN2NmYmU4MjY4/MDg0NTQxNzk1YmZk/OTA4MjYyMTBlMjh2/Ml9ocS5qcGc',
-    bio: 'Apaixonada por tecnologia e boas compras.',
-    phone: '(11) 99999-9999',
-    city: 'São Paulo',
-    state: 'SP'
+type ProducerProfile = {
+    id: number;
+    nome_fantasia: string;
+    cnpj?: string;
+    endereco_retirada?: string;
 };
 
 export function ProfileScreen() {
-    // Hook de navegação tipado
-    const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+    const navigation = useNavigation<any>();
+    const [user, setUser] = useState<UserProfile | null>(null);
+    const [producer, setProducer] = useState<ProducerProfile | null>(null);
+    const [loading, setLoading] = useState(true);
 
-    const handleBack = () => {
-        navigation.goBack();
-    };
+    // useFocusEffect garante que os dados recarreguem toda vez que você entrar na tela
+    useFocusEffect(
+        React.useCallback(() => {
+            loadProfileData();
+        }, [])
+    );
 
-    const handleEditProfile = () => {
-        console.log("Navegar para edição");
-        // navigation.navigate('EditProfile');
-    };
+    async function loadProfileData() {
+        try {
+            setLoading(true);
+            // 1. Pega o ID salvo no login
+            const jsonValue = await AsyncStorage.getItem('@user_data');
+            if (!jsonValue) {
+                return navigation.reset({ routes: [{ name: 'Login' }] });
+            }
 
-    const user = MOCK_USER;
+            const localUser = JSON.parse(jsonValue);
+
+            // 2. Busca dados frescos na tabela USUARIOS
+            const { data: userData, error: userError } = await supabase
+                .from('usuarios')
+                .select('*')
+                .eq('id', localUser.id)
+                .single();
+
+            if (userError) throw userError;
+            setUser(userData);
+
+            // 3. Se for PRODUTOR, busca dados na tabela PRODUTORES
+            if (userData.tipo_usuario === 'produtor') {
+                const { data: producerData, error: producerError } = await supabase
+                    .from('produtores')
+                    .select('*')
+                    .eq('usuario_id', userData.id)
+                    .single();
+
+                // Se não achar (pode acontecer se o cadastro falhou na parte 2), não trava, só avisa
+                if (!producerError) {
+                    setProducer(producerData);
+                }
+            }
+
+        } catch (error) {
+            console.error(error);
+            Alert.alert("Erro", "Não foi possível carregar o perfil.");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function handleLogout() {
+        Alert.alert("Sair", "Deseja realmente sair da conta?", [
+            { text: "Cancelar", style: "cancel" },
+            {
+                text: "Sair",
+                onPress: async () => {
+                    await AsyncStorage.removeItem('@user_data');
+                    navigation.reset({ routes: [{ name: 'Login' }] });
+                }
+            }
+        ]);
+    }
+
+    if (loading) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+        );
+    }
 
     return (
-        // ScrollView substitui a div principal para permitir rolagem na tela
-        <ScrollView style={styles.container}>
-
-            {/* Header (Topo com botões) */}
-            {/* View substitui div. style substitui className */}
+        <View style={styles.container}>
+            {/* CABEÇALHO */}
             <View style={styles.header}>
-                <View style={styles.headerContent}>
-                    {/* TouchableOpacity substitui button para áreas clicáveis */}
-                    <TouchableOpacity
-                        onPress={handleBack}
-                        style={styles.iconButton}
-                        activeOpacity={0.7}
-                    >
-                        {/* Lucide Icons: usa size (número) e color (string) */}
-                        <ArrowLeft size={24} color={COLORS.white} />
-                    </TouchableOpacity>
-
-                    <Text style={styles.headerTitle}>Meu Perfil</Text>
-
-                    <TouchableOpacity
-                        onPress={handleEditProfile}
-                        style={styles.iconButton}
-                        activeOpacity={0.7}
-                    >
-                        <Edit size={24} color={COLORS.white} />
-                    </TouchableOpacity>
-                </View>
+                <Text style={styles.headerTitle}>Meu Perfil</Text>
+                <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                    <Feather name="log-out" size={20} color="#FF5252" />
+                </TouchableOpacity>
             </View>
 
-            {/* Profile Header (Foto e Nome) */}
-            <View style={styles.profileHeader}>
-                <View style={styles.profileInfoContainer}>
-                    {/* Container da foto */}
-                    <View style={styles.photoContainer}>
-                        {user.photo ? (
-                            <Image
-                                source={{ uri: user.photo }}
-                                style={styles.photo}
-                                resizeMode="cover"
-                            />
-                        ) : (
-                            <View style={styles.photoPlaceholder}>
-                                <UserIcon size={48} color={COLORS.white} />
-                            </View>
-                        )}
+            <ScrollView contentContainerStyle={styles.content}>
+
+                {/* CARD PRINCIPAL (FOTO E NOME) */}
+                <View style={styles.profileCard}>
+                    <View style={styles.avatarContainer}>
+                        <Feather name="user" size={40} color={colors.primary} />
                     </View>
-
-                    {/* Text substitui h1 */}
-                    <Text style={styles.userName}>{user.name}</Text>
-
-                    {/* Badge de tipo de usuário */}
-                    <View style={styles.userTypeBadge}>
-                        <Text style={styles.userTypeText}>
-                            {user.type === 'cliente' ? 'Cliente' : 'Vendedor'}
+                    <Text style={styles.userName}>{user?.nome}</Text>
+                    <Text style={styles.userEmail}>{user?.email}</Text>
+                    <View style={[styles.badge, user?.tipo_usuario === 'produtor' ? styles.badgeProducer : styles.badgeConsumer]}>
+                        <Text style={styles.badgeText}>
+                            {user?.tipo_usuario === 'produtor' ? 'Vendedor / Produtor' : 'Consumidor'}
                         </Text>
                     </View>
                 </View>
-            </View>
 
-            {/* Profile Information (Conteúdo) */}
-            <View style={styles.contentSection}>
+                {/* SEÇÃO 1: DADOS PESSOAIS (Para todos) */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Dados Pessoais</Text>
 
-                {/* Bio */}
-                {user.bio && (
-                    <View style={styles.card}>
-                        <Text style={styles.cardTitle}>Sobre</Text>
-                        <Text style={styles.cardText}>{user.bio}</Text>
-                    </View>
-                )}
-
-                {/* Loja (Vendedor) */}
-                {user.type === 'vendedor' && user.storeName && (
-                    <View style={styles.card}>
-                        <View style={styles.row}>
-                            <View style={styles.iconCircle}>
-                                <Store size={24} color={COLORS.primary} />
-                            </View>
-                            <View>
-                                <Text style={styles.label}>Nome da Loja</Text>
-                                <Text style={styles.value}>{user.storeName}</Text>
-                            </View>
+                    <View style={styles.infoRow}>
+                        <Feather name="phone" size={18} color="#666" />
+                        <View style={styles.infoContent}>
+                            <Text style={styles.infoLabel}>Telefone</Text>
+                            <Text style={styles.infoValue}>{user?.telefone || "Não informado"}</Text>
                         </View>
                     </View>
-                )}
 
-                {/* Contato */}
-                <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Informações de Contato</Text>
+                    <View style={styles.divider} />
 
-                    <View style={styles.infoGap}>
-                        {/* E-mail */}
-                        <View style={styles.row}>
-                            <View style={styles.iconCircle}>
-                                <Mail size={20} color={COLORS.primary} />
-                            </View>
-                            <View>
-                                <Text style={styles.label}>E-mail</Text>
-                                <Text style={styles.value}>{user.email}</Text>
-                            </View>
+                    <View style={styles.infoRow}>
+                        <Feather name="map-pin" size={18} color="#666" />
+                        <View style={styles.infoContent}>
+                            <Text style={styles.infoLabel}>Endereço Padrão</Text>
+                            <Text style={styles.infoValue}>{user?.endereco_padrao || "Não informado"}</Text>
                         </View>
-
-                        {/* Telefone */}
-                        {user.phone && (
-                            <View style={styles.row}>
-                                <View style={styles.iconCircle}>
-                                    <Phone size={20} color={COLORS.primary} />
-                                </View>
-                                <View>
-                                    <Text style={styles.label}>Telefone</Text>
-                                    <Text style={styles.value}>{user.phone}</Text>
-                                </View>
-                            </View>
-                        )}
-
-                        {/* Endereço */}
-                        {(user.address || user.city || user.state) && (
-                            <View style={styles.row}>
-                                <View style={styles.iconCircle}>
-                                    <MapPin size={20} color={COLORS.primary} />
-                                </View>
-                                <View>
-                                    <Text style={styles.label}>Endereço</Text>
-                                    <Text style={styles.value}>
-                                        {user.address}
-                                        {user.address && (user.city || user.state) ? '\n' : ''}
-                                        {user.city ? user.city : ''}
-                                        {user.city && user.state ? ', ' : ''}
-                                        {user.state ? user.state : ''}
-                                    </Text>
-                                </View>
-                            </View>
-                        )}
                     </View>
                 </View>
 
-                {/* Estatísticas (Vendedor) */}
-                {user.type === 'vendedor' && (
-                    <View style={styles.card}>
-                        <Text style={styles.cardTitle}>Estatísticas</Text>
-                        <View style={styles.statsGrid}>
-                            <View style={styles.statItem}>
-                                <Text style={styles.statNumber}>12</Text>
-                                <Text style={styles.statLabel}>Produtos</Text>
+                {/* SEÇÃO 2: DADOS DA FAZENDA (Só aparece se for Produtor) */}
+                {user?.tipo_usuario === 'produtor' && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Minha Produção</Text>
+
+                        <View style={styles.infoRow}>
+                            <Feather name="briefcase" size={18} color="#666" />
+                            <View style={styles.infoContent}>
+                                <Text style={styles.infoLabel}>Nome Fantasia</Text>
+                                <Text style={styles.infoValue}>{producer?.nome_fantasia || "Não informado"}</Text>
                             </View>
-                            <View style={styles.statItem}>
-                                <Text style={styles.statNumber}>48</Text>
-                                <Text style={styles.statLabel}>Vendas</Text>
-                            </View>
-                            <View style={styles.statItem}>
-                                <Text style={styles.statNumber}>4.8</Text>
-                                <Text style={styles.statLabel}>Avaliação</Text>
+                        </View>
+
+                        <View style={styles.divider} />
+
+                        <View style={styles.infoRow}>
+                            <Feather name="file-text" size={18} color="#666" />
+                            <View style={styles.infoContent}>
+                                <Text style={styles.infoLabel}>CNPJ / CPF Produtor</Text>
+                                <Text style={styles.infoValue}>{producer?.cnpj || "Não informado"}</Text>
                             </View>
                         </View>
                     </View>
                 )}
-            </View>
-        </ScrollView>
+
+                <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={() => navigation.navigate('EditProfile')} // <--- CONECTADO!
+                >
+                    <Text style={styles.editButtonText}>Editar Informações</Text>
+                </TouchableOpacity>
+
+            </ScrollView>
+        </View>
     );
 }
 
-// Estilos usando StyleSheet (Padrão do React Native)
-// Isso substitui o uso de className do Tailwind/CSS
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: COLORS.background,
-    },
+    container: { flex: 1, backgroundColor: '#F5F7FA' },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     header: {
-        backgroundColor: COLORS.primary,
-        paddingHorizontal: 16,
-        paddingVertical: 16,
-    },
-    headerContent: {
+        backgroundColor: 'white',
+        paddingTop: 60,
+        paddingBottom: 20,
+        paddingHorizontal: 24,
         flexDirection: 'row',
-        alignItems: 'center',
         justifyContent: 'space-between',
-    },
-    headerTitle: {
-        color: COLORS.white,
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    iconButton: {
-        padding: 8,
-        borderRadius: 8,
-    },
-    profileHeader: {
-        backgroundColor: COLORS.primary,
-        paddingHorizontal: 16,
-        paddingBottom: 32,
-        paddingTop: 16,
         alignItems: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: '#EEE',
     },
-    profileInfoContainer: {
-        alignItems: 'center',
-    },
-    photoContainer: {
-        width: 96,
-        height: 96,
-        borderRadius: 48,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        borderWidth: 4,
-        borderColor: 'rgba(255,255,255,0.3)',
-        overflow: 'hidden',
-        marginBottom: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    photo: {
-        width: '100%',
-        height: '100%',
-    },
-    photoPlaceholder: {
-        width: '100%',
-        height: '100%',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    userName: {
-        color: COLORS.white,
-        fontSize: 24,
-        fontWeight: 'bold',
-        marginBottom: 4,
-    },
-    userTypeBadge: {
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        borderRadius: 20,
-    },
-    userTypeText: {
-        color: COLORS.white,
-        fontSize: 12,
-    },
-    contentSection: {
-        padding: 16,
-        gap: 16, // Espaçamento entre os cards
-    },
-    card: {
-        backgroundColor: COLORS.white,
+    headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#333' },
+    logoutButton: { padding: 8, backgroundColor: '#FFEBEE', borderRadius: 8 },
+
+    content: { padding: 20 },
+
+    profileCard: {
+        backgroundColor: 'white',
         borderRadius: 16,
         padding: 24,
-        shadowColor: '#000', // Sombra (iOS)
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        elevation: 2, // Sombra (Android)
-        marginBottom: 16,
-    },
-    cardTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: COLORS.textPrimary,
-        marginBottom: 12,
-    },
-    cardText: {
-        color: COLORS.textSecondary,
-        lineHeight: 20,
-    },
-    row: {
-        flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        marginBottom: 20,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 2,
     },
-    infoGap: {
-        gap: 16,
-    },
-    iconCircle: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: COLORS.primaryLight,
+    avatarContainer: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: colors.primaryLight,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
+        marginBottom: 16,
     },
-    label: {
-        color: COLORS.textTertiary,
-        fontSize: 12,
+    userName: { fontSize: 22, fontWeight: 'bold', color: '#333', marginBottom: 4 },
+    userEmail: { fontSize: 14, color: '#666', marginBottom: 12 },
+    badge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+    badgeProducer: { backgroundColor: '#E8F5E9' },
+    badgeConsumer: { backgroundColor: '#E3F2FD' },
+    badgeText: { fontSize: 12, fontWeight: 'bold', color: '#333' },
+
+    section: {
+        backgroundColor: 'white',
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 20,
     },
-    value: {
-        color: COLORS.textPrimary,
-        fontSize: 14,
-        fontWeight: '500',
-    },
-    statsGrid: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    statItem: {
+    sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 16 },
+    infoRow: { flexDirection: 'row', alignItems: 'center' },
+    infoContent: { marginLeft: 16, flex: 1 },
+    infoLabel: { fontSize: 12, color: '#999', marginBottom: 2 },
+    infoValue: { fontSize: 15, color: '#333' },
+    divider: { height: 1, backgroundColor: '#F0F0F0', marginVertical: 12, marginLeft: 34 },
+
+    editButton: {
+        backgroundColor: colors.primary,
+        padding: 16,
+        borderRadius: 12,
         alignItems: 'center',
-        flex: 1,
+        marginBottom: 30,
     },
-    statNumber: {
-        color: COLORS.primary,
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    statLabel: {
-        color: COLORS.textTertiary,
-        fontSize: 12,
-    },
+    editButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
 });
