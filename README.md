@@ -25,5 +25,6 @@ npm install
 npm install @react-navigation/drawer
 npx expo install react-native-gesture-handler react-native-reanimated
 npm install @react-native-async-storage/async-storage
+npx expo install @supabase/supabase-js @react-native-async-storage/async-storage
 ```
 
