@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     Modal,
     View,
@@ -6,30 +6,108 @@ import {
     StyleSheet,
     TouchableOpacity,
     FlatList,
-    Image
+    Image,
+    Alert,
+    Linking,
+    ActivityIndicator
 } from 'react-native';
-import { X, Minus, Plus, Trash2 } from 'lucide-react-native'; // Ícones
-import { useCart } from '../contexts/CartContext'; // Importa nosso hook
+import { X, Minus, Plus, Trash2 } from 'lucide-react-native';
+import { useCart } from '../contexts/CartContext';
 import { colors } from '../theme/colors';
+import { supabase } from '../lib/supabase'; // Importe seu cliente supabase
 
 export function CartModal() {
-    // Pega os dados e funções do contexto
     const { isCartOpen, closeCart, items, addToCart, removeFromCart, total } = useCart();
+    const [loading, setLoading] = useState(false);
+
+    // Função que faz a mágica do WhatsApp
+    async function handleCheckout() {
+        if (items.length === 0) return;
+
+        setLoading(true);
+
+        try {
+            // 1. Precisamos do telefone do produtor.
+            // Vamos pegar o ID do primeiro item do carrinho para descobrir quem vende.
+            // (Nota: Num app real, você verificaria se todos os itens são do mesmo produtor)
+            const firstItemId = items[0].id;
+
+            // Query complexa: Estoque -> Produtor -> Usuario (onde está o telefone)
+            const { data, error } = await supabase
+                .from('estoque')
+                .select(`
+                    produtores (
+                        nome_produtor,
+                        usuarios (
+                            telefone
+                        )
+                    )
+                `)
+                .eq('id', firstItemId)
+                .single();
+
+            if (error || !data) {
+                throw new Error("Não foi possível encontrar o contato do vendedor.");
+            }
+
+            // Acessando os dados aninhados com segurança
+            // @ts-ignore (Typescript pode reclamar da profundidade do objeto)
+            const phone = data.produtores?.usuarios?.telefone;
+            // @ts-ignore
+            const producerName = data.produtores?.nome_produtor;
+
+            if (!phone) {
+                Alert.alert("Erro", "Este produtor não cadastrou um telefone.");
+                return;
+            }
+
+            // 2. Montar a mensagem
+            let message = `Olá ${producerName}! Gostaria de fazer um pedido pelo GreenMarket:\n\n`;
+
+            items.forEach(item => {
+                message += `▪️ ${item.quantity}x ${item.name}\n`;
+            });
+
+            message += `\n💰 *Total Estimado: R$ ${total.toFixed(2)}*`;
+            message += `\n\nComo podemos combinar a entrega?`;
+
+            // 3. Abrir WhatsApp
+            // Remove caracteres não numéricos do telefone para evitar erros
+            const cleanPhone = phone.replace(/\D/g, '');
+            // Adiciona o código do Brasil (55) se não tiver
+            const finalPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+
+            const url = `whatsapp://send?phone=${finalPhone}&text=${encodeURIComponent(message)}`;
+
+            const supported = await Linking.canOpenURL(url);
+
+            if (supported) {
+                await Linking.openURL(url);
+                // Opcional: Limpar carrinho após enviar
+                // clearCart();
+                closeCart();
+            } else {
+                Alert.alert("Erro", "WhatsApp não está instalado.");
+            }
+
+        } catch (error: any) {
+            console.error(error);
+            Alert.alert("Erro", "Falha ao processar pedido. Tente novamente.");
+        } finally {
+            setLoading(false);
+        }
+    }
 
     return (
         <Modal
             visible={isCartOpen}
-            transparent={true} // Permite ver o fundo escurecido
-            animationType="slide" // Animação de subida
-            onRequestClose={closeCart} // Fecha ao apertar botão voltar (Android)
+            transparent={true}
+            animationType="slide"
+            onRequestClose={closeCart}
         >
-            {/* Fundo escuro transparente */}
             <View style={styles.overlay}>
-
-                {/* Conteúdo do Carrinho (Ocupa parte de baixo ou lateral) */}
                 <View style={styles.modalContainer}>
 
-                    {/* Header do Carrinho */}
                     <View style={styles.header}>
                         <Text style={styles.headerTitle}>Meu Carrinho ({items.length})</Text>
                         <TouchableOpacity onPress={closeCart}>
@@ -37,7 +115,6 @@ export function CartModal() {
                         </TouchableOpacity>
                     </View>
 
-                    {/* Lista de Itens */}
                     {items.length === 0 ? (
                         <View style={styles.emptyContainer}>
                             <Text style={styles.emptyText}>Seu carrinho está vazio.</Text>
@@ -50,31 +127,16 @@ export function CartModal() {
                             renderItem={({ item }) => (
                                 <View style={styles.itemCard}>
                                     <Image source={{ uri: item.image }} style={styles.itemImage} />
-
                                     <View style={styles.itemInfo}>
                                         <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
                                         <Text style={styles.itemPrice}>R$ {item.price.toFixed(2)}</Text>
                                     </View>
-
-                                    {/* Controles de Quantidade */}
                                     <View style={styles.quantityControls}>
-                                        <TouchableOpacity
-                                            onPress={() => removeFromCart(item.id)}
-                                            style={styles.controlButton}
-                                        >
-                                            {item.quantity === 1 ? (
-                                                <Trash2 size={16} color="red" />
-                                            ) : (
-                                                <Minus size={16} color="#333" />
-                                            )}
+                                        <TouchableOpacity onPress={() => removeFromCart(item.id)} style={styles.controlButton}>
+                                            {item.quantity === 1 ? <Trash2 size={16} color="red" /> : <Minus size={16} color="#333" />}
                                         </TouchableOpacity>
-
                                         <Text style={styles.quantityText}>{item.quantity}</Text>
-
-                                        <TouchableOpacity
-                                            onPress={() => addToCart(item)}
-                                            style={styles.controlButton}
-                                        >
+                                        <TouchableOpacity onPress={() => addToCart(item)} style={styles.controlButton}>
                                             <Plus size={16} color="#333" />
                                         </TouchableOpacity>
                                     </View>
@@ -83,7 +145,6 @@ export function CartModal() {
                         />
                     )}
 
-                    {/* Footer com Total e Botão Finalizar */}
                     <View style={styles.footer}>
                         <View style={styles.totalRow}>
                             <Text style={styles.totalLabel}>Total</Text>
@@ -91,10 +152,17 @@ export function CartModal() {
                         </View>
 
                         <TouchableOpacity
-                            style={styles.checkoutButton}
-                            onPress={() => alert("Ir para Pagamento")}
+                            style={[styles.checkoutButton, items.length === 0 && { backgroundColor: '#ccc' }]}
+                            onPress={handleCheckout}
+                            disabled={items.length === 0 || loading}
                         >
-                            <Text style={styles.checkoutText}>Finalizar Compra</Text>
+                            {loading ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <Text style={styles.checkoutText}>
+                                    {items.length === 0 ? 'Carrinho Vazio' : 'Enviar Pedido no WhatsApp'}
+                                </Text>
+                            )}
                         </TouchableOpacity>
                     </View>
 
@@ -107,12 +175,12 @@ export function CartModal() {
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)', // Fundo preto com 50% transparência
-        justifyContent: 'flex-end', // Alinha o modal na parte de baixo
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
     },
     modalContainer: {
         backgroundColor: 'white',
-        height: '80%', // Ocupa 80% da tela
+        height: '85%', // Aumentei um pouco para caber melhor
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
         padding: 20,
@@ -141,7 +209,7 @@ const styles = StyleSheet.create({
         padding: 12,
         alignItems: 'center',
     },
-    itemImage: { width: 50, height: 50, borderRadius: 8, marginRight: 12 },
+    itemImage: { width: 50, height: 50, borderRadius: 8, marginRight: 12, backgroundColor: '#eee' },
     itemInfo: { flex: 1 },
     itemName: { fontWeight: 'bold', fontSize: 14, color: '#333' },
     itemPrice: { color: colors.primary, fontWeight: 'bold', marginTop: 4 },
@@ -156,8 +224,9 @@ const styles = StyleSheet.create({
     totalLabel: { fontSize: 18, color: '#666' },
     totalValue: { fontSize: 24, fontWeight: 'bold', color: colors.primary },
     checkoutButton: {
-        backgroundColor: colors.primary,
-        padding: 16, borderRadius: 12, alignItems: 'center'
+        backgroundColor: '#25D366', // Cor do WhatsApp
+        padding: 16, borderRadius: 12, alignItems: 'center',
+        flexDirection: 'row', justifyContent: 'center'
     },
     checkoutText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
 });

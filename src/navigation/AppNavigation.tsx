@@ -11,6 +11,8 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { ProductDetailScreen } from '../screens/ProductDetailScreen';
 import {ProfileScreen} from "../screens/ProfileScreen";
 import {EditProfileScreen} from '../screens/EditProfileScreen';
+import {AddProductScreen} from "../screens/AddProductScreen";
+import { EditProductScreen } from '../screens/EditProductScreen';
 // ... outras importações
 
 // Definir os tipos de parâmetros para cada tela (TypeScript puro!)
@@ -25,6 +27,8 @@ export type RootStackParamList = {
   Profile: undefined;
   ProfileScreen: undefined;
   EditProfile: undefined;
+  AddProduct: undefined;
+  EditProduct: { product: any };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -39,7 +43,9 @@ export function AppNavigator() {
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
         <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
-          <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="AddProduct" component={AddProductScreen} />
+        <Stack.Screen name="EditProduct" component={EditProductScreen} options={{ headerShown: false }} />
         {/* ... outras telas */}
       </Stack.Navigator>
     </NavigationContainer>

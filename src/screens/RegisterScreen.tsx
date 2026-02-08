@@ -46,9 +46,10 @@ export function RegisterScreen() {
                         // Outros campos como cnpj/endereço ficam null por enquanto
                     });
 
-                if (producerError) throw producerError;
-                console.error("Erro ao criar produtor:", producerError);
-                throw producerError;
+                if (producerError) {
+                    console.error("Erro ao criar produtor:", producerError);
+                    throw producerError;
+                }
             }
 
             Alert.alert("Sucesso", "Conta criada com sucesso!", [

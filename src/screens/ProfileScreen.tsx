@@ -18,7 +18,7 @@ type UserProfile = {
 
 type ProducerProfile = {
     id: number;
-    nome_fantasia: string;
+    nome_produtor: string;
     cnpj?: string;
     endereco_retirada?: string;
 };
@@ -157,8 +157,8 @@ export function ProfileScreen() {
                         <View style={styles.infoRow}>
                             <Feather name="briefcase" size={18} color="#666" />
                             <View style={styles.infoContent}>
-                                <Text style={styles.infoLabel}>Nome Fantasia</Text>
-                                <Text style={styles.infoValue}>{producer?.nome_fantasia || "Não informado"}</Text>
+                                <Text style={styles.infoLabel}>Nome do Produtor</Text>
+                                <Text style={styles.infoValue}>{producer?.nome_produtor || "Não informado"}</Text>
                             </View>
                         </View>
 
